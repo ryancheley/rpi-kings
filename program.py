@@ -43,7 +43,7 @@ def main(team_id):
                 if home_team_id == team_id:
                     msg = 'The {} ({}) will be playing the {} ({}) at {}'.format(home_team, home_record, away_team, away_record ,game_time)
                 else:
-                    msg = 'The {} ({}) will be playing at the {} ({}) at {}'.format(home_team, home_record, away_team, away_record ,game_time)
+                    msg = 'The {} ({}) will be playing at the {} ({}) at {}'.format(away_team, away_record, home_team, home_record ,game_time)
                 sense.show_message(msg, scroll_speed=0.05)
 
         game_ID = r.json().get('dates')[0].get('games')[0].get('gamePk')

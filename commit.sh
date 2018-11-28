@@ -4,8 +4,8 @@ read commit_msg
 
 git commit -m "$commit_msg"
 
-git remote add origin git@github.com:ryancheley/rpi-kings.git
+#git remote add origin git@github.com:ryancheley/rpi-kings.git
 
-git remote -v
+#git remote -v
 
-git push -u origin master
+git push

@@ -74,8 +74,11 @@ def goal_checker(game_id, team_id):
         goal_ts_minute = '0'+str(goal_ts.minute)
         goal_ts = goal_ts_hour+":"+goal_ts_minute[-2:]
         if month_diff == 0 and day_diff == 0 and hour_diff == 0 and 2 >= minute_diff >= 0:
-            if goal_team_id == team_id:            
-                goal_msg = 'GOAL!!!! '+r.json().get('liveData').get('plays').get('allPlays')[scoring_plays[i]].get('result').get('description')
+            if goal_team_id == team_id:
+                score_away = r.json().get('liveData').get('boxscore').get('teams').get('away').get('teamStats').get('teamSkaterStats').get('goals')
+                score_home = r.json().get('liveData').get('boxscore').get('teams').get('home').get('teamStats').get('teamSkaterStats').get('goals')
+                score = '{}-{}'.format(score_away, score_home)
+                goal_msg = 'GOAL!!!! '+r.json().get('liveData').get('plays').get('allPlays')[scoring_plays[i]].get('result').get('description')+'. The score is {}'.format(score)
                 sense.show_message(goal_msg, scroll_speed=0.05)
 
 

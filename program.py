@@ -48,6 +48,7 @@ def main(team_id):
 
         game_ID = r.json().get('dates')[0].get('games')[0].get('gamePk')
         goal_checker(game_ID, team_id)
+        get_final_score(game_ID)
 
 
 def goal_checker(game_id, team_id):
@@ -90,6 +91,34 @@ def return_record(team_id):
     otl = (r.json().get('stats')[0].get('splits')[0].get('stat').get('ot'))
     record = str(wins)+'-'+str(losses)+'-'+str(otl)
     return record
+
+
+def get_final_score(game_id):
+    url = 'https://statsapi.web.nhl.com/api/v1/game/{}/feed/live'.format(game_id)
+    r = requests.get(url)
+    game_end_time = r.json().get('gameData').get('datetime').get('endDateTime')
+    score_away = r.json().get('liveData').get('boxscore').get('teams').get('away').get('teamStats').get('teamSkaterStats').get('goals')
+    team_name_away = r.json().get('liveData').get('boxscore').get('teams').get('away').get('team').get('name')
+    score_home = r.json().get('liveData').get('boxscore').get('teams').get('home').get('teamStats').get('teamSkaterStats').get('goals')
+    team_name_home = r.json().get('liveData').get('boxscore').get('teams').get('home').get('team').get('name')
+    if score_away > score_home:
+        msg = 'The {} have beaten the {} by a score of {}-{}'.format(team_name_away, team_name_home,score_away, score_home)
+    elif score_away < score_home:
+        msg = 'The {} have beaten the {} by a score of {}-{}'.format(team_name_home, team_name_away,score_away, score_home)
+    else:
+        msg = 'The game has ended in a tie'
+        
+    if game_end_time is not None:
+        game_end_time = datetime.strptime(game_end_time, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc).astimezone(local_tz)
+        minute_diff = relativedelta(now, game_end_time).minutes
+        hour_diff = relativedelta(now, game_end_time).hours
+        day_diff = relativedelta(now, game_end_time).days
+        month_diff = relativedelta(now, game_end_time).months
+        game_end_time_hour = str(game_end_time.hour)
+        game_end_time_minute = '0'+str(game_end_time.minute)
+        game_end_time = game_end_time_hour+":"+game_end_time_minute[-2:]
+        if month_diff == 0 and day_diff == 0 and hour_diff == 0 and 5 >= minute_diff >= 0:    
+            sense.show_message(msg, scroll_speed=0.05)
 
 
 if __name__ == '__main__':

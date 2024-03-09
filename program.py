@@ -1,125 +1,121 @@
-import requests
-from sense_hat import SenseHat
 from datetime import datetime
 import pytz
-from dateutil.relativedelta import relativedelta
+
+import httpx
+
+try:
+    from sense_hat import SenseHat
+except ModuleNotFoundError:
+    pass
 
 
+TEAM_ABBR = "SEA"
+TIME_ZONE = "America/Los_Angeles"
 
-def main(team_id):
-    sense = SenseHat()
-
-    local_tz = pytz.timezone('America/Los_Angeles')
-    utc_now = pytz.utc.localize(datetime.utcnow())
-    now = utc_now.astimezone(local_tz)
-
-    url = 'https://statsapi.web.nhl.com/api/v1/schedule?teamId={}'.format(team_id)
-    r = requests.get(url)
-
-    total_games = r.json().get('totalGames')
-    if total_games >0:
-        for i in range(total_games):
-            game_time = (r.json().get('dates')[i].get('games')[0].get('gameDate'))
-            away_team = (r.json().get('dates')[i].get('games')[0].get('teams').get('away').get('team').get('name'))
-            home_team = (r.json().get('dates')[i].get('games')[0].get('teams').get('home').get('team').get('name'))
-            away_team_id = (r.json().get('dates')[i].get('games')[0].get('teams').get('away').get('team').get('id'))
-            home_team_id = (r.json().get('dates')[i].get('games')[0].get('teams').get('home').get('team').get('id'))
-            game_time = datetime.strptime(game_time, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc).astimezone(local_tz)
-            # The time_diff was added as a test
-            time_diff = (now - game_time).total_seconds() / 60
-            # These lines may be removed after testing
-            minute_diff = relativedelta(now, game_time).minutes
-            hour_diff = relativedelta(now, game_time).hours
-            day_diff = relativedelta(now, game_time).days
-            month_diff = relativedelta(now, game_time).months
-            # end lines that can be removed
-            game_time_hour = str(game_time.hour)
-            game_time_minute = '0'+str(game_time.minute)
-            game_time = game_time_hour+":"+game_time_minute[-2:]
-            away_record = return_record(away_team_id)
-            home_record = return_record(home_team_id)
-            if 0 >= time_diff >= -10:
-            #if month_diff == 0 and day_diff == 0 and hour_diff == 0 and 0 >= minute_diff >= -10:
-                if home_team_id == team_id:
-                    msg = 'The {} ({}) will be playing the {} ({}) at {}'.format(home_team, home_record, away_team, away_record ,game_time)
-                else:
-                    msg = 'The {} ({}) will be playing at the {} ({}) at {}'.format(away_team, away_record, home_team, home_record ,game_time)
-                sense.show_message(msg, scroll_speed=0.05)
-
-        game_ID = r.json().get('dates')[0].get('games')[0].get('gamePk')
-        goal_checker(game_ID, team_id)
-        get_final_score(game_ID)
+TODAY = datetime.now(pytz.timezone(TIME_ZONE)).strftime("%Y-%m-%d")
+NOW = datetime.now(pytz.timezone(TIME_ZONE))
 
 
-def goal_checker(game_id, team_id):
-    url = 'http://statsapi.web.nhl.com/api/v1/game/{}/feed/live'.format(game_id)
-    r = requests.get(url)
-
-    local_tz = pytz.timezone('America/Los_Angeles')
-    utc_now = pytz.utc.localize(datetime.utcnow())
-    now = utc_now.astimezone(local_tz)
-    sense = SenseHat()
+def convert_utc_to_local(utc_time):
+    local_timezone = pytz.timezone(TIME_ZONE)
+    local_time = utc_time.astimezone(local_timezone)
+    return local_time
 
 
-    scoring_plays = r.json().get('liveData').get('plays').get('scoringPlays')
-
-    for i in range(len(scoring_plays)):
-        goal_team_id = r.json().get('liveData').get('plays').get('allPlays')[scoring_plays[i]].get('team').get('id')
-        goal_ts = r.json().get('liveData').get('plays').get('allPlays')[scoring_plays[i]].get('about').get('dateTime')
-        goal_ts = datetime.strptime(goal_ts, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc).astimezone(local_tz)
-        minute_diff = relativedelta(now, goal_ts).minutes
-        hour_diff = relativedelta(now, goal_ts).hours
-        day_diff = relativedelta(now, goal_ts).days
-        month_diff = relativedelta(now, goal_ts).months
-        goal_ts_hour = str(goal_ts.hour)
-        goal_ts_minute = '0'+str(goal_ts.minute)
-        goal_ts = goal_ts_hour+":"+goal_ts_minute[-2:]
-        if month_diff == 0 and day_diff == 0 and hour_diff == 0 and 2 >= minute_diff >= 0:
-            if goal_team_id == team_id:
-                score_away = r.json().get('liveData').get('boxscore').get('teams').get('away').get('teamStats').get('teamSkaterStats').get('goals')
-                score_home = r.json().get('liveData').get('boxscore').get('teams').get('home').get('teamStats').get('teamSkaterStats').get('goals')
-                score = '{}-{}'.format(score_away, score_home)
-                goal_msg = 'GOAL!!!! '+r.json().get('liveData').get('plays').get('allPlays')[scoring_plays[i]].get('result').get('description')+'. The score is {}'.format(score)
-                sense.show_message(goal_msg, scroll_speed=0.05)
+def get_current_week_schedule(team_abbr: str):
+    url = f"https://api-web.nhle.com/v1/club-schedule/{team_abbr}/week/{TODAY}"
+    headers = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = httpx.get(url, headers=headers)
+    return response.json()
 
 
-def return_record(team_id):
-    standings_url = 'https://statsapi.web.nhl.com/api/v1/teams/{}/stats'.format(team_id)
-    r = requests.get(standings_url)
-    wins = (r.json().get('stats')[0].get('splits')[0].get('stat').get('wins'))
-    losses = (r.json().get('stats')[0].get('splits')[0].get('stat').get('losses'))
-    otl = (r.json().get('stats')[0].get('splits')[0].get('stat').get('ot'))
-    record = str(wins)+'-'+str(losses)+'-'+str(otl)
-    return record
+def get_date_of_next_game(team_abbr: str, timezone=TIME_ZONE):
+    datetime_format = "%Y-%m-%dT%H:%M:%SZ"
+    timezone = pytz.timezone(TIME_ZONE)
+    schedule = get_current_week_schedule(team_abbr)
+    game = schedule.get("games", [])
+    next_game_time_utc = game[0].get("startTimeUTC")
+    naive_datetime_object = datetime.strptime(next_game_time_utc, datetime_format)
+    datetime_object_with_timezone = timezone.localize(naive_datetime_object)
+    return datetime_object_with_timezone
 
 
-def get_final_score(game_id):
-    url = 'https://statsapi.web.nhl.com/api/v1/game/{}/feed/live'.format(game_id)
-    r = requests.get(url)
-    game_end_time = r.json().get('gameData').get('datetime').get('endDateTime')
-    score_away = r.json().get('liveData').get('boxscore').get('teams').get('away').get('teamStats').get('teamSkaterStats').get('goals')
-    team_name_away = r.json().get('liveData').get('boxscore').get('teams').get('away').get('team').get('name')
-    score_home = r.json().get('liveData').get('boxscore').get('teams').get('home').get('teamStats').get('teamSkaterStats').get('goals')
-    team_name_home = r.json().get('liveData').get('boxscore').get('teams').get('home').get('team').get('name')
-    if score_away > score_home:
-        msg = 'The {} have beaten the {} by a score of {}-{}'.format(team_name_away, team_name_home,score_away, score_home)
-    elif score_away < score_home:
-        msg = 'The {} have beaten the {} by a score of {}-{}'.format(team_name_home, team_name_away,score_away, score_home)
-    else:
-        msg = 'The game has ended in a tie'
-        
-    if game_end_time is not None:
-        game_end_time = datetime.strptime(game_end_time, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc).astimezone(local_tz)
-        minute_diff = relativedelta(now, game_end_time).minutes
-        hour_diff = relativedelta(now, game_end_time).hours
-        day_diff = relativedelta(now, game_end_time).days
-        month_diff = relativedelta(now, game_end_time).months
-        game_end_time_hour = str(game_end_time.hour)
-        game_end_time_minute = '0'+str(game_end_time.minute)
-        game_end_time = game_end_time_hour+":"+game_end_time_minute[-2:]
-        if month_diff == 0 and day_diff == 0 and hour_diff == 0 and 5 >= minute_diff >= 0:    
-            sense.show_message(msg, scroll_speed=0.05)
+def seconds_until_next_game():
+    next_game = get_date_of_next_game(TEAM_ABBR)
+    time_until_next_game = next_game - NOW
+
+    return time_until_next_game.seconds
 
 
-if __name__ == '__main__':
-    main(26) # This is the code for the LA Kings; the ID can be found here: https://statsapi.web.nhl.com/api/v1/teams/
+def get_game_id(team_abbr: str):
+    schedule = get_current_week_schedule(team_abbr)
+    game_id = schedule.get("games", [])[0].get("id")
+    return game_id
+
+
+def get_game_url(team_abbr: str):
+    game_id = get_game_id(team_abbr)
+    game_url = f"https://api-web.nhle.com/v1/gamecenter/{game_id}/boxscore"
+    return game_url
+
+
+def get_team_name(game_type: str):
+    game_response = httpx.get(get_game_url(TEAM_ABBR)).json()
+    team_name = game_response.get(game_type).get("name").get("default")
+    return team_name
+
+
+def get_team_abbreviation(game_type: str):
+    game_response = httpx.get(get_game_url(TEAM_ABBR)).json()
+    team_abbreviation = game_response.get(game_type).get("abbrev")
+    return team_abbreviation
+
+
+def get_record(team_abbr: str):
+    url = f"https://api-web.nhle.com/v1/standings/{TODAY}"
+    response = httpx.get(url).json()
+    standings = response.get("standings")
+    for team in standings:
+        if team.get("teamAbbrev").get("default") == team_abbr:
+            wins = team.get("wins")
+            loses = team.get("losses")
+            olt = team.get("otLosses")
+            return f"{wins}-{loses}-{olt}"
+
+
+def get_venue():
+    game_response = httpx.get(get_game_url(TEAM_ABBR)).json()
+    venue_name = game_response.get("venue").get("default")
+    return venue_name
+
+
+def main():
+    home_abbreviation = get_team_abbreviation("homeTeam")
+    home_team = get_team_name("homeTeam")
+    home_record = get_record(home_abbreviation)
+
+    away_abbreviation = get_team_abbreviation("awayTeam")
+    away_team = get_team_name("awayTeam")
+    away_record = get_record(away_abbreviation)
+
+    venue = get_venue()
+
+    game_date = get_date_of_next_game(TEAM_ABBR)
+    game_time_display = (
+        f"{game_date.tzinfo.fromutc(game_date).time().strftime('%-I:%M %p')}"
+    )
+
+    message = f"The {home_team} ({home_record}) will be playing the {away_team} ({away_record}) at {venue} at {game_time_display}"
+
+    time_diff = seconds_until_next_game() / 60
+    if 10 >= time_diff >= 0:
+        try:
+            sense.show_message(message, scroll_speed=0.05)
+        except NameError:
+            print(message)
+
+
+if __name__ == "__main__":
+    main()

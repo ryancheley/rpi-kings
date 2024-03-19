@@ -3,11 +3,9 @@ import pytz
 
 import httpx
 
-try:
-    from sense_hat import SenseHat
-except ModuleNotFoundError:
-    pass
+from sense_hat import SenseHat
 
+sense = SenseHat()
 
 TEAM_ABBR = "SEA"
 TIME_ZONE = "America/Los_Angeles"
@@ -111,10 +109,7 @@ def main():
 
     time_diff = seconds_until_next_game() / 60
     if 10 >= time_diff >= 0:
-        try:
-            sense.show_message(message, scroll_speed=0.05)
-        except NameError:
-            print(message)
+        sense.show_message(message, scroll_speed=0.05)
 
 
 if __name__ == "__main__":

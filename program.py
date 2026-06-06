@@ -90,6 +90,10 @@ def get_venue():
 
 
 def main():
+    schedule = get_current_week_schedule(TEAM_ABBR)
+    if not schedule.get("games"):
+        return
+
     home_abbreviation = get_team_abbreviation("homeTeam")
     home_team = get_team_name("homeTeam")
     home_record = get_record(home_abbreviation)

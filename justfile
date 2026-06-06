@@ -7,7 +7,7 @@
 @setup-pi:
     sudo apt install -y sense-hat
     rm -rf .venv
-    uv venv --system-site-packages --python 3.11
+    uv venv --system-site-packages --python /usr/bin/python3
     uv sync
 
 @lock:

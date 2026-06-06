@@ -1,6 +1,14 @@
-@pip:
-    uv pip compile requirements.in -o requirements.txt
-    pip install -r requirements.txt
+@sync:
+    uv sync
+
+@lock:
+    uv lock
+
+@upgrade:
+    uv lock --upgrade
 
 @lint:
-    ruff check .
+    uv run ruff check .
+
+@run:
+    uv run python program.py

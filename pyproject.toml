@@ -7,8 +7,12 @@ requires-python = ">=3.11"
 dependencies = [
     "httpx",
     "pytz",
-    "sense-hat",
 ]
+
+# `sense-hat` (and its `RTIMU` C extension) is provided by the Raspberry Pi
+# OS apt package `sense-hat`, not by PyPI. The venv must be created with
+# `--system-site-packages` so the apt-installed modules are importable.
+# See README for setup details.
 
 [dependency-groups]
 dev = [

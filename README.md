@@ -7,31 +7,41 @@ is about to start.
 ## Requirements
 
 - A Raspberry Pi with a Sense HAT.
-- Python 3.11 or newer.
+- Raspberry Pi OS Bookworm (Python 3.11).
 - [`uv`](https://docs.astral.sh/uv/) for dependency management.
 - [`just`](https://github.com/casey/just) (optional) for the helper recipes.
 
-On Raspberry Pi OS the Sense HAT system libraries are easiest to install via
-apt:
+## Setup on the Raspberry Pi
+
+The `sense_hat` Python package and its `RTIMU` C extension are **not** on
+PyPI; they ship with Raspberry Pi OS via apt and are built against the
+system Python. The project venv must therefore (a) use the system Python
+3.11 and (b) be created with `--system-site-packages` so the apt-installed
+modules are visible.
+
+The `setup-pi` recipe does both:
 
 ```sh
-sudo apt install sense-hat
+just setup-pi
 ```
 
-The PyPI `sense-hat` package is also listed in `pyproject.toml` so `uv sync`
-will pull in the Python bindings.
+Or manually:
 
-## Setup
+```sh
+sudo apt install sense-hat        # installs sense-hat + python3-rtimulib
+rm -rf .venv
+uv venv --system-site-packages --python 3.11
+uv sync
+```
 
-Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/), then
-sync the environment:
+## Setup on a dev machine (no Sense HAT)
 
 ```sh
 uv sync
 ```
 
-This creates a `.venv` and installs the runtime + dev dependencies pinned in
-`uv.lock`.
+`program.py` won't run without the Sense HAT, but linting and lockfile
+maintenance work fine.
 
 ## Running
 
@@ -41,8 +51,8 @@ just run
 uv run python program.py
 ```
 
-The script checks the NHL schedule for the configured team (`SEA`) and, if a
-game is starting within the next 10 minutes, scrolls a summary across the
+The script checks the NHL schedule for the configured team (`SEA`) and, if
+a game is starting within the next 10 minutes, scrolls a summary across the
 Sense HAT.
 
 ## Development

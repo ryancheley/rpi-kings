@@ -19,5 +19,8 @@
 @lint:
     uv run ruff check .
 
+@hooks:
+    uv run prek run --all-files
+
 @run:
     uv run python program.py

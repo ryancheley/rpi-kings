@@ -24,3 +24,6 @@
 
 @run:
     uv run python program.py
+
+@test:
+    uv run python test_program.py

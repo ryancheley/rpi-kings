@@ -37,9 +37,13 @@ def get_standings() -> dict:
 
 
 def get_next_game_time(game: dict) -> datetime:
-    timezone = pytz.timezone(TIME_ZONE)
     naive = datetime.strptime(game["startTimeUTC"], DATETIME_FORMAT)
-    return timezone.localize(naive)
+    return pytz.utc.localize(naive).astimezone(pytz.timezone(TIME_ZONE))
+
+
+def team_name(team: dict) -> str:
+    # The boxscore dropped "name" in the 2026-27 season; it now splits it into place and nickname.
+    return f"{team['placeName']['default']} {team['commonName']['default']}"
 
 
 def find_record(standings: dict, team_abbr: str) -> str | None:
@@ -65,23 +69,23 @@ def main():
     home = boxscore["homeTeam"]
     away = boxscore["awayTeam"]
 
-    home_team = home["name"]["default"]
+    home_team = team_name(home)
     home_record = find_record(standings, home["abbrev"])
 
-    away_team = away["name"]["default"]
+    away_team = team_name(away)
     away_record = find_record(standings, away["abbrev"])
 
     venue = boxscore["venue"]["default"]
 
     game_date = get_next_game_time(game)
-    game_time_display = game_date.tzinfo.fromutc(game_date).time().strftime("%-I:%M %p")
+    game_time_display = game_date.strftime("%-I:%M %p")
 
     message = (
         f"The {home_team} ({home_record}) will be playing the "
         f"{away_team} ({away_record}) at {venue} at {game_time_display}"
     )
 
-    time_diff = (game_date - NOW).seconds / 60
+    time_diff = (game_date - NOW).total_seconds() / 60
     if 10 >= time_diff >= 0:
         sense.show_message(message, scroll_speed=0.05)
 
